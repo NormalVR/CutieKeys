@@ -1,10 +1,11 @@
 ﻿using UnityEngine;
-using Valve.VR;
+using UnityEngine.SpatialTracking;
+using UnityEngine.XR;
 
 namespace Normal.UI {
     public class MoveAndScale : MonoBehaviour {
-        public SteamVR_TrackedObject  leftController;
-        public SteamVR_TrackedObject rightController;
+        public TrackedPoseDriver leftController;
+        public TrackedPoseDriver rightController;
     
         enum State {
             Idle,
@@ -15,8 +16,8 @@ namespace Normal.UI {
         private State _state = State.Idle;
 
         // Move
-        private SteamVR_TrackedObject _moveController;
-        private SteamVR_TrackedObject _idleController;
+        private TrackedPoseDriver _moveController;
+        private TrackedPoseDriver _idleController;
         private Vector3               _positionOffsetFromController;
         private Quaternion            _rotationOffsetFromController;
 
@@ -98,7 +99,7 @@ namespace Normal.UI {
         }
     
         // Move
-        void BeginMove(SteamVR_TrackedObject moveController, SteamVR_TrackedObject idleController) {
+        void BeginMove(TrackedPoseDriver moveController, TrackedPoseDriver idleController) {
             _state = State.Move;
             _moveController = moveController;
             _idleController = idleController;
@@ -156,15 +157,28 @@ namespace Normal.UI {
 
         }
 
-        // SteamVR
-        bool GetGrip(SteamVR_TrackedObject controller) {
-            if (controller.index == SteamVR_TrackedObject.EIndex.None)
-                return false;
-
-            int i = (int)controller.index;
-            SteamVR_Controller.Device device = SteamVR_Controller.Input(i);
-
-            return device.GetPress(EVRButtonId.k_EButton_Grip);
+        // OpenXR
+        bool GetGrip(TrackedPoseDriver tpd) {
+            var poseSource = tpd.poseSource;
+            switch (poseSource)
+            {
+                case TrackedPoseDriver.TrackedPose.LeftPose:
+                    if(InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).TryGetFeatureValue(UnityEngine.XR.CommonUsages.gripButton, out var leftPressed))
+                    {
+                        return leftPressed;
+                    }
+                    break;
+                case TrackedPoseDriver.TrackedPose.RightPose:
+                    if (InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(UnityEngine.XR.CommonUsages.gripButton, out var rightPressed))
+                    {
+                        return rightPressed;
+                    }
+                    break;
+                default:
+                    break;
+            }
+  
+            return false;
         }
 
         Vector3 GetControllerCentroid() {
